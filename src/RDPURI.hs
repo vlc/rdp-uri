@@ -1,9 +1,21 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-module RDPURI where
+{-# LANGUAGE TemplateHaskell   #-}
+module RDPURI (
+  -- Our Type
+  RDPURI,
+  Attribute(..),
+  -- The lenses
+  rdpuriAddress,
+  rdpuriAttributes,
+  -- Rendering
+  renderRDPURI,
+  -- Support
+  addAttribute
+  ) where
 
 import           Control.Lens
-import           Data.ByteString         as BS
+import           Data.ByteString        as BS
 import           Data.ByteString.Lens
 import           Data.Monoid
 import           Data.Text
@@ -12,57 +24,7 @@ import           Network.HTTP.Types.URI
 
 type Address = (Text, Maybe Int)
 
-data RDPURI = RDPURI Address [Attribute]
-
-renderRDPURI :: RDPURI -> BS.ByteString
-renderRDPURI (RDPURI address as) = "rdp://" <> render attributes
-                where attributes = renderAddress address : fmap renderAttribute as
-                      render = BS.intercalate "&" . fmap f
-                               where f (a,b) = urlEncode False a <> "=" <> b
-
-
-renderAddress :: (Text, Maybe Int) -> (ByteString, ByteString)
-renderAddress (a, v) = ("full address", x)
-                    where x = "s:" <> encodeUtf8 a <> portBit
-                          portBit = maybe "" (\i -> ":" <> (view packedChars . show $ i)) v
-
-data ZeroOne = Zero | One
-data ZeroOneTwo = Zero' | One' | Two'
-data OneTwo = One'' | Two''
-
--- Maybe do this with a Prism? Make it 2-way
-class RdpValue a where
-  renderValue :: a -> ByteString
-
-instance RdpValue Text where
-  renderValue v = "s:" <> encodeUtf8 v
-
-instance RdpValue ZeroOne where
-  renderValue Zero = "i:0"
-  renderValue One = "i:1"
-
-instance RdpValue ZeroOneTwo where
-  renderValue Zero' = "i:0"
-  renderValue One' = "i:1"
-  renderValue Two' = "i:2"
-
-instance RdpValue OneTwo where
-  renderValue One'' = "i:1"
-  renderValue Two'' = "i:2"
-
-instance RdpValue Int where
-  renderValue i = "i:" <> (show i ^. packedChars)
-
-data BPP = BPP8 | BPP15 | BPP16 | BPP24 | BPP32
-
-instance RdpValue BPP where
-  renderValue BPP8 = renderValue (8::Int)
-  renderValue BPP15 = renderValue (15::Int)
-  renderValue BPP16 = renderValue (16::Int)
-  renderValue BPP24 = renderValue (24::Int)
-  renderValue BPP32 = renderValue (32::Int)
-
--- https://technet.microsoft.com/en-us/library/dn690096.aspx
+data RDPURI = RDPURI { _rdpuriAddress :: Address, _rdpuriAttributes :: [Attribute] }
 
 data Attribute
   = AllowDesktopComposition ZeroOne
@@ -94,6 +56,59 @@ data Attribute
   | ScreenModeId OneTwo
   | SessionBPP BPP
   | UseMultimon ZeroOne
+
+data ZeroOne = Zero | One
+data ZeroOneTwo = Zero' | One' | Two'
+data OneTwo = One'' | Two''
+data BPP = BPP8 | BPP15 | BPP16 | BPP24 | BPP32
+
+makeLenses ''RDPURI
+
+renderRDPURI :: RDPURI -> BS.ByteString
+renderRDPURI (RDPURI address as) = "rdp://" <> render attributes
+                where attributes = renderAddress address : fmap renderAttribute as
+                      render = BS.intercalate "&" . fmap f
+                               where f (a,b) = urlEncode False a <> "=" <> b
+
+addAttribute :: Attribute -> RDPURI -> RDPURI
+addAttribute a = rdpuriAttributes <>~ [a]
+
+renderAddress :: (Text, Maybe Int) -> (ByteString, ByteString)
+renderAddress (a, v) = ("full address", x)
+                    where x = "s:" <> encodeUtf8 a <> portBit
+                          portBit = maybe "" (\i -> ":" <> (view packedChars . show $ i)) v
+
+-- Maybe do this with a Prism? Make it 2-way
+class RdpValue a where
+  renderValue :: a -> ByteString
+
+instance RdpValue Text where
+  renderValue v = "s:" <> encodeUtf8 v
+
+instance RdpValue ZeroOne where
+  renderValue Zero = "i:0"
+  renderValue One = "i:1"
+
+instance RdpValue ZeroOneTwo where
+  renderValue Zero' = "i:0"
+  renderValue One' = "i:1"
+  renderValue Two' = "i:2"
+
+instance RdpValue OneTwo where
+  renderValue One'' = "i:1"
+  renderValue Two'' = "i:2"
+
+instance RdpValue Int where
+  renderValue i = "i:" <> (show i ^. packedChars)
+
+instance RdpValue BPP where
+  renderValue BPP8 = renderValue (8::Int)
+  renderValue BPP15 = renderValue (15::Int)
+  renderValue BPP16 = renderValue (16::Int)
+  renderValue BPP24 = renderValue (24::Int)
+  renderValue BPP32 = renderValue (32::Int)
+
+-- https://technet.microsoft.com/en-us/library/dn690096.aspx
 
 renderAttribute :: Attribute -> (ByteString, ByteString)
 renderAttribute = \case
@@ -127,4 +142,5 @@ renderAttribute = \case
  ScreenModeId z -> ("screen mode id", renderValue z)
  SessionBPP z -> ("session bpp", renderValue z)
  UseMultimon z -> ("use multimon", renderValue z)
+
 
