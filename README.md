@@ -16,6 +16,7 @@ import RDPURI
 
 ex1 = RDPURI ("localhost", Nothing) []
 ex2 = ex1 & rdpuriAttributes <>~ [DesktopWidth 1024, DesktopHeight 768]
+ex3 = addAttribute (SessionBPP BPP32) ex2
 
 ```
 
@@ -27,4 +28,6 @@ Printing URIs
 "rdp://full%20address=s:localhost"
 λ> renderRDPURI ex2
 "rdp://full%20address=s:localhost&desktopwidth=i:1024&desktopheight=i:768"
+λ> renderRDPURI ex3
+"rdp://full%20address=s:localhost&desktopwidth=i:1024&desktopheight=i:768&session%20bpp=i:32"
 ```

@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell   #-}
 module RDPURI (
   -- Our Type
-  RDPURI,
+  RDPURI(..),
   Attribute(..),
   -- The lenses
   rdpuriAddress,
