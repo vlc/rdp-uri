@@ -11,7 +11,9 @@ module RDPURI (
   -- Rendering
   renderRDPURI,
   -- Support
-  addAttribute
+  addAttribute,
+  -- Data types
+  ZeroOne(..), ZeroOneTwo(..)
   ) where
 
 import           Control.Lens
